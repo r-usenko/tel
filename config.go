@@ -13,6 +13,7 @@ import (
 	"github.com/caarlos0/env/v9"
 	"github.com/pkg/errors"
 	health "github.com/tel-io/tel/v2/monitoring/heallth"
+	"github.com/tel-io/tel/v2/pkg/idgen"
 	"github.com/tel-io/tel/v2/pkg/samplers"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap/zapcore"
@@ -63,7 +64,8 @@ type tracesConfig struct {
 		MaxInstruments     int           `env:"TRACES_CARDINALITY_DETECTOR_MAX_INSTRUMENTS" envDefault:"500"`
 		DiagnosticInterval time.Duration `env:"TRACES_CARDINALITY_DETECTOR_DIAGNOSTIC_INTERVAL" envDefault:"10m"`
 	}
-	sampler sdktrace.Sampler
+	sampler     sdktrace.Sampler
+	idGenerator sdktrace.IDGenerator
 }
 
 // TODO: Review overlapping options (WthInsecure, WithCompression, etc).
@@ -179,8 +181,9 @@ func DefaultConfig() Config {
 			WithCompression:            true,
 			MetricsPeriodicIntervalSec: 15,
 			Traces: tracesConfig{
-				Sampler: statusTraceIDRatioSampler + ":0.1",
-				sampler: sdktrace.NeverSample(),
+				Sampler:     statusTraceIDRatioSampler + ":0.1",
+				sampler:     sdktrace.NeverSample(),
+				idGenerator: new(idgen.CryptoIdGenerator),
 			},
 		},
 	}

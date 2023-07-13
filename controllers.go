@@ -8,7 +8,6 @@ import (
 	"github.com/tel-io/tel/v2/monitoring"
 	"github.com/tel-io/tel/v2/pkg/cardinalitydetector"
 	"github.com/tel-io/tel/v2/pkg/grpcerr"
-	"github.com/tel-io/tel/v2/pkg/idgen"
 	"github.com/tel-io/tel/v2/pkg/otelerr"
 	"github.com/tel-io/tel/v2/pkg/zcore"
 	"go.opentelemetry.io/contrib/instrumentation/host"
@@ -166,7 +165,7 @@ func (o *oTrace) apply(ctx context.Context, t *Telemetry) func(context.Context) 
 		sdktrace.WithSampler(t.cfg.OtelConfig.Traces.sampler),
 		sdktrace.WithResource(o.res),
 		sdktrace.WithSpanProcessor(bsp),
-		sdktrace.WithIDGenerator(new(idgen.CryptoIdGenerator)),
+		sdktrace.WithIDGenerator(t.cfg.OtelConfig.Traces.idGenerator),
 	)
 
 	// set global propagator to tracecontext (the default is no-op).
