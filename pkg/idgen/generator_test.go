@@ -2,7 +2,7 @@ package idgen_test
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -12,9 +12,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func testCollision(t *testing.T, tr trace.Tracer) {
-	const count = 10000000
-
+func testCollision(tr trace.Tracer, count int) int {
 	wg := new(sync.WaitGroup)
 	wg.Add(count)
 	var muLock = new(sync.Mutex)
@@ -23,11 +21,10 @@ func testCollision(t *testing.T, tr trace.Tracer) {
 
 	ctx := context.Background()
 
-	for i := int64(0); i < count; i++ {
-		go func(i int64) {
+	for i := 0; i < count; i++ {
+		go func(i int) {
 			defer wg.Done()
-
-			_, s := tr.Start(ctx, strconv.FormatInt(i, 10))
+			_, s := tr.Start(ctx, fmt.Sprintf("test-%d", i))
 			sCtx := s.SpanContext()
 			tid := sCtx.TraceID().String()
 			sid := sCtx.SpanID().String()
@@ -54,19 +51,37 @@ func testCollision(t *testing.T, tr trace.Tracer) {
 		}
 	}
 
-	assert.Equal(t, collisionCount, 0)
+	return collisionCount
+}
+
+func BenchmarkOtel(b *testing.B) {
+	tr := strace.NewTracerProvider().Tracer("otel")
+
+	for i := 0; i < b.N; i++ {
+		testCollision(tr, 10000)
+	}
+}
+
+func BenchmarkIdGen(b *testing.B) {
+	tr := strace.NewTracerProvider(
+		strace.WithIDGenerator(new(idgen.CryptoIdGenerator)),
+	).Tracer("idgen")
+
+	for i := 0; i < b.N; i++ {
+		testCollision(tr, 10000)
+	}
 }
 
 func TestCollisionOtelGenerator(t *testing.T) {
-	tr := strace.NewTracerProvider()
+	tr := strace.NewTracerProvider().Tracer("otel")
 
-	testCollision(t, tr.Tracer("otel"))
+	assert.Equal(t, testCollision(tr, 1000000), 0)
 }
 
 func TestCollisionIdGenerator(t *testing.T) {
 	tr := strace.NewTracerProvider(
 		strace.WithIDGenerator(new(idgen.CryptoIdGenerator)),
-	)
+	).Tracer("idgen")
 
-	testCollision(t, tr.Tracer("idgen"))
+	assert.Equal(t, testCollision(tr, 1000000), 0)
 }
